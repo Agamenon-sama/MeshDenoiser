@@ -99,12 +99,6 @@ App::App()
         .shader = _shader
     });
 
-    _texture = Necrosis::TextureManager::makeTextureFromFile("res/textures/tex.png");
-    slog::info("Texture loaded: {}x{}",
-        Necrosis::TextureManager::getTextureFromID(_texture).getWidth(),
-        Necrosis::TextureManager::getTextureFromID(_texture).getHeight()
-    );
-
     _framebuffer = std::make_unique<Necrosis::Framebuffer>(glm::ivec4(0, 0, 1280, 720));
 }
 
@@ -116,7 +110,6 @@ void App::run() {
     _shader->use();
     _shader->setMat4f("u_model", model);
 
-    Necrosis::TextureManager::bind(_texture, 1);
     _shader->setInt("tex", 1);
 
     while (_eventManager->appIsRunning) {
@@ -129,7 +122,6 @@ void App::run() {
         _processor.update();
 
         _renderer->clear();
-        Necrosis::TextureManager::bind(_texture, 0);
         _shader->setInt("tex", 0);
 
         model = glm::rotate(model, glm::radians(-1.0f), glm::vec3(0.0f, 1.0f, 0.0f));

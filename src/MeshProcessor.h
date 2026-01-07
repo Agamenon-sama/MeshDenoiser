@@ -18,11 +18,14 @@ public:
     void update();
 
     void applyNoise(Model &model, float sigma);
+    void flattenMeshToGLBuffer(Model &model, SurfaceMesh &mesh);
+
     bool isProcessing(Model &model) const;
 
 
 private:
     // WARNING: dangling pointer risk
     std::unordered_map<Model*, std::future<NoiseResult>> _noiseTasks;
+    std::unordered_map<Model*, std::future<std::vector<float>>> _flattenTasks;
 };
 }

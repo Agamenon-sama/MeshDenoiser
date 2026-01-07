@@ -35,6 +35,7 @@ public:
 private:
     // mesh stuff
     i8 _currentMesh;
+    i8 _listSize;
     std::array<SurfaceMesh, 16> _meshes;
     float _sigma;
     bool _isApplyingNoise;

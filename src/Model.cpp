@@ -17,7 +17,9 @@ using namespace std::chrono_literals;
 
 using Kernel = CGAL::Simple_cartesian<double>;
 
-Model::Model() : _currentMesh(-1), _sigma(0.001f), _isApplyingNoise(false), _vao(nullptr), _vbo(nullptr), _ibo(nullptr) {}
+Model::Model()
+    : _currentMesh(-1), _listSize(-1), _sigma(0.001f)
+    , _isApplyingNoise(false), _vao(nullptr), _vbo(nullptr), _ibo(nullptr) {}
 Model::~Model() {}
 
 std::expected<std::shared_ptr<Model>, std::string> Model::loadFromFile(const std::filesystem::path &path) {
@@ -27,6 +29,7 @@ std::expected<std::shared_ptr<Model>, std::string> Model::loadFromFile(const std
     }
 
     model->_currentMesh = 0;
+    model->_listSize = 0;
 
     CGAL::Polygon_mesh_processing::triangulate_faces(model->_meshes[0]);
 
@@ -88,6 +91,24 @@ void Model::uiRender(MeshProcessor &processor) {
         ImGui::Text("Vertices: %d", _currentMesh >= 0 ? _meshes[_currentMesh].num_vertices() : 0);
         ImGui::Text("Faces: %d", _currentMesh >= 0 ? _meshes[_currentMesh].num_faces() : 0);
 
+        auto currentMesh = _currentMesh;
+
+        // ImGui::Text("current mesh index: %d", _currentMesh);
+        // ImGui::Text("Redo max index: %d", _listSize);
+        if (currentMesh <= 0) { ImGui::BeginDisabled(); }
+        if (ImGui::Button("Undo")) {
+            _currentMesh--;
+            processor.flattenMeshToGLBuffer(*this, _meshes[_currentMesh]);
+        }
+        if (currentMesh <= 0) { ImGui::EndDisabled(); }
+        ImGui::SameLine();
+        if (currentMesh >= _listSize) { ImGui::BeginDisabled(); }
+        if (ImGui::Button("Redo")) {
+            _currentMesh++;
+            processor.flattenMeshToGLBuffer(*this, _meshes[_currentMesh]);
+        }
+        if (currentMesh >= _listSize) { ImGui::EndDisabled(); }
+
         ImGui::Text("Add noise");
         ImGui::InputFloat("Noise std deviation", &_sigma, 0.001);
 
@@ -119,6 +140,7 @@ void Model::pushMesh(SurfaceMesh mesh) {
     }
     else {
         _currentMesh++;
+        _listSize = _currentMesh;
     }
     _meshes[_currentMesh] = std::move(mesh);
 

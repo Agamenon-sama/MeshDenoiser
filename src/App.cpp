@@ -1,0 +1,204 @@
+#include "App.h"
+
+#include <memory>
+
+#include <SDL3/SDL_events.h>
+#include <glm/fwd.hpp>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glad/glad.h>
+#include <imgui/imgui.h>
+
+#include <Necrosis/renderer/Shader.h>
+#include <Necrosis/scene/Mesh.h>
+
+
+namespace Denoiser {
+
+void uiRender() {
+    ImGui::Begin("New window");
+
+        ImGui::Text("last frame: %.3f ms, fps: %.3f", 1000.f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        ImGui::Separator();
+
+        ImGui::Text("OpenGL info:");
+        ImGui::BulletText("vendor: %s", (const char*)glGetString(GL_VENDOR));
+        ImGui::BulletText("version: %s", (const char*)glGetString(GL_VERSION));
+        ImGui::BulletText("renderer: %s", (const char*)glGetString(GL_RENDERER));
+
+    ImGui::End();
+}
+
+void renderDockSpace() {
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
+    ImGui::SetNextWindowViewport(viewport->ID);
+    constexpr ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar
+        | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize
+        | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus
+        | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_MenuBar;
+    ImGui::Begin("DockSpace", nullptr, windowFlags);
+        const ImGuiID dockSpace =  ImGui::GetID("MasterDockSpace");
+        ImGui::DockSpace(dockSpace, ImVec2(0.0f, 0.0f)/*, ImGuiDockNodeFlags_PassthruCentralNode*/);
+        if (ImGui::BeginMenuBar()) {
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("New")) { Necrosis::Window::showWarningMessageBox("This feature is not implemented yet"); }
+                if (ImGui::MenuItem("Open")) { Necrosis::Window::showWarningMessageBox("This feature is not implemented yet"); }
+                if (ImGui::MenuItem("Save")) { Necrosis::Window::showWarningMessageBox("This feature is not implemented yet"); }
+                if (ImGui::MenuItem("Save As..")) { Necrosis::Window::showWarningMessageBox("This feature is not implemented yet"); }
+                if (ImGui::MenuItem("Export")) { Necrosis::Window::showWarningMessageBox("This feature is not implemented yet"); }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Exit")) {
+                    // _eventManager->appIsRunning = false;
+                    SDL_Event ev = { .type = SDL_EVENT_QUIT };
+                    SDL_PushEvent(&ev);
+                }
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Edit")) {
+                if (ImGui::MenuItem("Nothing here yet")) {}
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
+        }
+
+    ImGui::End();
+}
+
+App::App()
+        : Necrosis::Engine({ .windowTitle = "Mesh Denoiser", .windowWidth = 1600, .windowHeight = 900 })
+        , _camera(glm::vec3(0.f, 1.f, 3.f)), _isFramebufferHovered(false) {
+
+    _camera.movementSpeed = 0.01f;
+    // _camera.near = 1.f;
+    // _camera.far = 1000.f;
+    _eventManager = std::make_unique<Necrosis::EventManager>(&_input);
+    _renderer = std::make_unique<Necrosis::Renderer>();
+    _renderer->setCamera(&_camera);
+
+    _setupMouseEventListeners();
+    _input.keyboard.keyDispatcher.listen([this](Necrosis::KeyboardEvent ev) {
+        static bool mode = false;
+        // I'm using 'Z' for 'W' be azerty keyboard. This is temporary
+        if (ev.state == Necrosis::KeyState::Up && ev.key == SDL_SCANCODE_Z) {
+            _renderer->setWireframeMode(mode = !mode);
+        }
+    });
+
+    auto loadedModel = Model::loadFromFile("res/models/stanford-bunny.obj");
+    if (!loadedModel.has_value()) {
+        slog::error("Failed to load model from file: {}", loadedModel.error());
+        exit(EXIT_FAILURE);
+    }
+    _model = *loadedModel;
+    _shader = Necrosis::Shader::makeFromFile("res/shaders/basic.glsl");
+    _renderer->addRenderCommand({
+        .renderable = _model,
+        .shader = _shader
+    });
+
+    _texture = Necrosis::TextureManager::makeTextureFromFile("res/textures/tex.png");
+    slog::info("Texture loaded: {}x{}",
+        Necrosis::TextureManager::getTextureFromID(_texture).getWidth(),
+        Necrosis::TextureManager::getTextureFromID(_texture).getHeight()
+    );
+
+    _framebuffer = std::make_unique<Necrosis::Framebuffer>(glm::ivec4(0, 0, 1280, 720));
+}
+
+void App::run() {
+    auto model = glm::mat4(1.0f);
+
+    model = glm::scale(model, glm::vec3(5.f));
+    // model = glm::rotate(model, glm::radians(15.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    _shader->use();
+    _shader->setMat4f("u_model", model);
+
+    Necrosis::TextureManager::bind(_texture, 1);
+    _shader->setInt("tex", 1);
+
+    while (_eventManager->appIsRunning) {
+        _eventManager->manageEvents();
+
+        startGuiFrame();
+
+        _framebuffer->bind();
+
+        _processor.update();
+
+        _renderer->clear();
+        Necrosis::TextureManager::bind(_texture, 0);
+        _shader->setInt("tex", 0);
+
+        model = glm::rotate(model, glm::radians(-1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        _shader->setMat4f("u_model", model);
+
+        _renderer->renderAll();
+        _framebuffer->unbind();
+
+
+        _renderer->clear();
+        renderDockSpace();
+        uiRender();
+
+
+        ImGui::Begin("Image");
+            ImGui::Image(
+                (ImTextureRef) _framebuffer->getTextureID(),
+                ImVec2(static_cast<f32>(_framebuffer->getWidth()), static_cast<f32>(_framebuffer->getHeight())),
+                ImVec2(0, 1), ImVec2(1, 0)
+            );
+            if (ImGui::IsItemHovered()) { _isFramebufferHovered = true; }
+            else { _isFramebufferHovered = false; }
+        ImGui::End();
+
+        _model->uiRender(_processor);
+
+        endGuiFrame();
+
+        swapBuffers();
+    }
+    Necrosis::TextureManager::destroyAll();
+}
+
+void App::_setupMouseEventListeners() {
+    _input.mouse.motionDispatcher.listen([this](Necrosis::MouseMotionEvent ev) {
+        if (!_isFramebufferHovered) return;
+
+        if (_input.mouse.buttons[static_cast<int>(Necrosis::MouseButton::Middle)]) {
+            if (_input.keyboard.isPressed(SDL_SCANCODE_LSHIFT)) {
+                if (ev.xrel > 0)
+                    _camera.processPosition(Necrosis::CameraMovement::Left, 7.f);
+                else if (ev.xrel < 0)
+                    _camera.processPosition(Necrosis::CameraMovement::Right, 7.f);
+
+                if (ev.yrel > 0)
+                    _camera.processPosition(Necrosis::CameraMovement::Up, 7.f);
+                else if (ev.yrel < 0)
+                    _camera.processPosition(Necrosis::CameraMovement::Down, 7.f);
+            }
+            else {
+                _camera.processAngle(static_cast<f32>(ev.xrel), static_cast<f32>(-ev.yrel));
+            }
+        }
+    });
+    _input.mouse.wheelDispatcher.listen([this](Necrosis::ScrollWheelEvent ev) {
+        if (!_isFramebufferHovered) return;
+        if (ev.scroll > 0.f) {
+            // const auto originalSpeed = _camera.movementSpeed;
+            // _camera.movementSpeed = 5.f * originalSpeed;
+            _camera.processPosition(Necrosis::CameraMovement::Forward, 7.f);
+            // _camera.movementSpeed = originalSpeed;
+        }
+        else {
+            // const auto originalSpeed = _camera.movementSpeed;
+            // _camera.movementSpeed = 5.f * originalSpeed;
+            _camera.processPosition(Necrosis::CameraMovement::Back, 7.f);
+            // _camera.movementSpeed = originalSpeed;
+        }
+    });
+}
+
+}

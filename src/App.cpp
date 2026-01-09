@@ -72,8 +72,6 @@ App::App()
         , _camera(glm::vec3(0.f, 1.f, 3.f)), _isFramebufferHovered(false) {
 
     _camera.movementSpeed = 0.01f;
-    // _camera.near = 1.f;
-    // _camera.far = 1000.f;
     _eventManager = std::make_unique<Necrosis::EventManager>(&_input);
     _renderer = std::make_unique<Necrosis::Renderer>();
     _renderer->setCamera(&_camera);
@@ -87,7 +85,8 @@ App::App()
         }
     });
 
-    auto loadedModel = Model::loadFromFile("res/models/stanford-bunny.obj");
+    // auto loadedModel = Model::loadFromFile("res/models/stanford-bunny.obj");
+    auto loadedModel = Model::loadFromFile("res/models/judy-good.obj");
     if (!loadedModel.has_value()) {
         slog::error("Failed to load model from file: {}", loadedModel.error());
         exit(EXIT_FAILURE);
@@ -119,7 +118,15 @@ void App::run() {
 
         _framebuffer->bind();
 
-        _processor.update();
+        try {
+            _processor.update();
+        }
+        catch (const CGAL::Assertion_exception &e) {
+            slog::error("Exception thrown from the mesh processor: {}", e.what());
+            Necrosis::Window::showWarningMessageBox(
+                "A mesh processing operation failed.\nThe mesh is probably broken."
+            );
+        }
 
         _renderer->clear();
         _shader->setInt("tex", 0);

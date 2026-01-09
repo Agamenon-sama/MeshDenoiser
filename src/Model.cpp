@@ -16,6 +16,7 @@ namespace Denoiser {
 using namespace std::chrono_literals;
 
 using Kernel = CGAL::Simple_cartesian<double>;
+namespace PMP = CGAL::Polygon_mesh_processing;
 
 Model::Model()
     : _currentMesh(-1), _listSize(-1), _sigma(0.001f)
@@ -109,7 +110,9 @@ void Model::uiRender(MeshProcessor &processor) {
         }
         if (currentMesh >= _listSize) { ImGui::EndDisabled(); }
 
-        ImGui::Text("Add noise");
+        ImGui::Separator();
+
+        ImGui::SeparatorText("Gaussian Noise");
         ImGui::InputFloat("Noise std deviation", &_sigma, 0.001);
 
         bool isProcessing = processor.isProcessing(*this);
@@ -119,11 +122,29 @@ void Model::uiRender(MeshProcessor &processor) {
         }
         if (ImGui::Button("Apply Noise")) {
             processor.applyNoise(*this, _sigma);
-            // _applyNoise();
         }
         if (isProcessing) {
             ImGui::EndDisabled();
-            ImGui::Text("Currently applying noise...");
+            ImGui::Text("Currently processing...");
+        }
+
+        static int numIterations = 5;
+        static float lambda = 0.5f;
+        ImGui::SeparatorText("Laplacian Smoothing");
+        ImGui::InputInt("number of iterations", &numIterations);
+        ImGui::SliderFloat("lambda", &lambda, 0.f, 1.f);
+
+        if (isProcessing) {
+            ImGui::BeginDisabled();
+        }
+        if (ImGui::Button("Smooth")) {
+            auto mesh = _meshes[_currentMesh];
+            processor.applyLaplacianSmoothing(*this, lambda, numIterations);
+        }
+
+        if (isProcessing) {
+            ImGui::EndDisabled();
+            ImGui::Text("Currently processing...");
         }
     ImGui::End();
 }
@@ -143,8 +164,6 @@ void Model::pushMesh(SurfaceMesh mesh) {
         _listSize = _currentMesh;
     }
     _meshes[_currentMesh] = std::move(mesh);
-
-    slog::info("current mesh index: {}", _currentMesh);
 }
 
 SurfaceMesh Model::getCurrentMesh() {
@@ -154,7 +173,8 @@ SurfaceMesh Model::getCurrentMesh() {
 void Model::updateGLBuffers(std::vector<float> vertices) {
     _vao->bind();
     _vbo->bind();
-    glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(float), vertices.data());
+    // glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(float), vertices.data());
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_DYNAMIC_DRAW);
 }
 
 }

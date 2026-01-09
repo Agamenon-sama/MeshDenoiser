@@ -45,6 +45,8 @@ find_package(assimp REQUIRED)
 message(STATUS "Found assimp")
 find_package(CGAL REQUIRED)
 message(STATUS "Found CGAL")
+find_package (Eigen3 REQUIRED NO_MODULE)
+message(STATUS "Found Eigen")
 
 # Set libraries
 # GLAD
@@ -60,7 +62,7 @@ message(STATUS "Imgui is set")
 
 
 
-set(LIBS Necrosis GLAD SDL3 Imgui assimp CGAL::CGAL)
+set(LIBS Necrosis GLAD SDL3 Imgui assimp CGAL::CGAL Eigen3::Eigen)
 
 # Linking libraries
 target_link_libraries("denoiser" Threads::Threads ${LIBS})

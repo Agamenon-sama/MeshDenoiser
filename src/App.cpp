@@ -30,7 +30,7 @@ void uiRender() {
     ImGui::End();
 }
 
-void renderDockSpace() {
+void App::renderDockSpace() {
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->Pos);
     ImGui::SetNextWindowSize(viewport->Size);
@@ -45,7 +45,22 @@ void renderDockSpace() {
         if (ImGui::BeginMenuBar()) {
             if (ImGui::BeginMenu("File")) {
                 if (ImGui::MenuItem("New")) { Necrosis::Window::showWarningMessageBox("This feature is not implemented yet"); }
-                if (ImGui::MenuItem("Open")) { Necrosis::Window::showWarningMessageBox("This feature is not implemented yet"); }
+                if (ImGui::MenuItem("Open")) {
+                    Necrosis::Window::openFileDialog([this](std::string path) {
+                        slog::info("Loading obj file '{}'", path);
+                        _renderer->removeRenderCommand(_model);
+                        auto loadedModel = Model::loadFromFile(path);
+                        if (!loadedModel.has_value()) {
+                            slog::error("Failed to load model from file: {}", loadedModel.error());
+                            Necrosis::Window::showErrorMessageBox("Failed to load the model");
+                        }
+                        _model = *loadedModel;
+                        _renderer->addRenderCommand(_model,  {
+                            .renderable = _model,
+                            .shader = _shader
+                        });
+                    }, {{"3D mesh", "obj"}});
+                }
                 if (ImGui::MenuItem("Save")) { Necrosis::Window::showWarningMessageBox("This feature is not implemented yet"); }
                 if (ImGui::MenuItem("Save As..")) { Necrosis::Window::showWarningMessageBox("This feature is not implemented yet"); }
                 if (ImGui::MenuItem("Export")) { Necrosis::Window::showWarningMessageBox("This feature is not implemented yet"); }
@@ -93,7 +108,7 @@ App::App()
     }
     _model = *loadedModel;
     _shader = Necrosis::Shader::makeFromFile("res/shaders/basic.glsl");
-    _renderer->addRenderCommand({
+    _renderer->addRenderCommand(_model,  {
         .renderable = _model,
         .shader = _shader
     });

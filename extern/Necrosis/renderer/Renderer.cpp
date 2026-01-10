@@ -61,13 +61,13 @@ void Renderer::renderAll() const noexcept {
 #endif
 
     for (auto it = _renderCommands.begin(); it != _renderCommands.end(); ++it) {
-        it->shader->use();
+        it->second.shader->use();
         if (_camera) {
-            it->shader->setMat4f("u_view", _camera->getViewMatrix());
-            it->shader->setMat4f("u_projection", _camera->getProjMatrix());
+            it->second.shader->setMat4f("u_view", _camera->getViewMatrix());
+            it->second.shader->setMat4f("u_projection", _camera->getProjMatrix());
         }
 
-        it->renderable->render();
+        it->second.renderable->render();
     }
 
     if (_skybox) {
@@ -91,8 +91,14 @@ void Renderer::setWireframeMode(bool on) const {
     }
 }
 
-void Renderer::addRenderCommand(RenderCommand command) {
-    _renderCommands.push_back(command);
+void Renderer::addRenderCommand(std::shared_ptr<Renderable> renderable, RenderCommand command) {
+    if (_renderCommands.contains(renderable)) { return; }
+    _renderCommands[renderable] = std::move(command);
+}
+
+void Renderer::removeRenderCommand(std::shared_ptr<Renderable> renderable) {
+    if (!_renderCommands.contains(renderable)) { return; }
+    _renderCommands.erase(renderable);
 }
 
 }

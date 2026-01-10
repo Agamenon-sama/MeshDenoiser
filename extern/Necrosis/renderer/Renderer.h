@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vector>
+#include <unordered_map>
 #include <memory>
 
 #include "Buffer.h"
@@ -60,7 +60,9 @@ public:
     /**
      * @brief Add the renderable object and its data to the list of objects to render
     */
-    void addRenderCommand(RenderCommand command);
+    void addRenderCommand(std::shared_ptr<Renderable> renderable, RenderCommand command);
+
+    void removeRenderCommand(std::shared_ptr<Renderable> renderable);
     /**
      * @brief Set the skybox to be rendered, if any, in the rendered frame
     */
@@ -75,7 +77,7 @@ public:
 
 private:
     // could change the data type for the purpose of ordering
-    std::vector<RenderCommand> _renderCommands;
+    std::unordered_map<std::shared_ptr<Renderable>, RenderCommand> _renderCommands;
     std::shared_ptr<Renderable> _skybox;
     Camera *_camera;
 };

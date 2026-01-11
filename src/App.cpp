@@ -128,9 +128,15 @@ App::App()
     _setupMouseEventListeners();
     _input.keyboard.keyDispatcher.listen([this](Necrosis::KeyboardEvent ev) {
         static bool mode = false;
+        static bool smoothShading = true;
         // I'm using 'Z' for 'W' be azerty keyboard. This is temporary
         if (ev.state == Necrosis::KeyState::Up && ev.key == SDL_SCANCODE_Z) {
             _renderer->setWireframeMode(mode = !mode);
+        }
+        else if (ev.state == Necrosis::KeyState::Up && ev.key == SDL_SCANCODE_S) {
+            slog::info("changing shader type: smooth = {}", smoothShading);
+            _shader->use();
+            _shader->setBool("u_smoothShading", smoothShading = !smoothShading);
         }
     });
 
@@ -142,6 +148,8 @@ App::App()
     }
     _model = *loadedModel;
     _shader = Necrosis::Shader::makeFromFile("res/shaders/basic.glsl");
+    _shader->use();
+    _shader->setBool("u_smoothShading", true);
     _renderer->addRenderCommand(_model,  {
         .renderable = _model,
         .shader = _shader

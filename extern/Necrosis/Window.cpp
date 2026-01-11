@@ -31,6 +31,13 @@ Window* Window::create(std::string title, int width, int height, bool resizable)
         return nullptr;
     }
 
+    if (!SDL_GL_SetSwapInterval(-1)) {
+        slog::warning("Failed to enable adaptive vsync: {}. Trying with vsync.", SDL_GetError());
+        if (!SDL_GL_SetSwapInterval(1)) {
+            slog::warning("Failed to enable vsync: {}. Will run with immediate updates.", SDL_GetError());
+        }
+    }
+
     res->_width = width;
     res->_height = height;
     res->_title = title;

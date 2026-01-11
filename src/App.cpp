@@ -16,8 +16,8 @@
 
 namespace Denoiser {
 
-void uiRender() {
-    ImGui::Begin("New window");
+void App::uiRender() {
+    ImGui::Begin("OpenGL");
 
         ImGui::Text("last frame: %.3f ms, fps: %.3f", 1000.f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::Separator();
@@ -26,6 +26,40 @@ void uiRender() {
         ImGui::BulletText("vendor: %s", (const char*)glGetString(GL_VENDOR));
         ImGui::BulletText("version: %s", (const char*)glGetString(GL_VERSION));
         ImGui::BulletText("renderer: %s", (const char*)glGetString(GL_RENDERER));
+
+    ImGui::End();
+
+    ImGui::Begin("Model transformation");
+        ImGui::Text("Name: %s", _model->getName().c_str());
+
+        static auto translation = glm::vec3(0.f);
+        static float rotationX = 0.f;
+        static float rotationY = 0.f;
+        static float rotationZ = 0.f;
+        static float scale = 1.f;
+        static bool rotate = false;
+
+        ImGui::SliderFloat3("Translation", &translation[0], -1.f, 1.f);
+        ImGui::SliderFloat("Rotation X", &rotationX, 0.0f, 360.f);
+        ImGui::SliderFloat("Rotation Y", &rotationY, 0.0f, 360.f);
+        ImGui::SliderFloat("Rotation Z", &rotationZ, 0.0f, 360.f);
+        ImGui::SliderFloat("Scale", &scale, 0.1f, 10.f);
+
+        if (ImGui::Button("Rotate")) {
+            rotate = !rotate;
+        }
+
+        if (rotate) {
+            rotationY += 1.f;
+            rotationY = std::fmodf(rotationY, 360.f);
+        }
+        _modelMatrix = glm::mat4(1.f);
+        _modelMatrix = glm::translate(_modelMatrix, translation);
+        _modelMatrix = glm::rotate(_modelMatrix, glm::radians(rotationX), glm::vec3(1.f, 0.f, 0.f));
+        _modelMatrix = glm::rotate(_modelMatrix, glm::radians(rotationY), glm::vec3(0.f, 1.f, 0.f));
+        _modelMatrix = glm::rotate(_modelMatrix, glm::radians(rotationZ), glm::vec3(0.f, 0.f, 1.f));
+        _modelMatrix = glm::scale(_modelMatrix, glm::vec3(scale));
+
 
     ImGui::End();
 }
@@ -117,12 +151,8 @@ App::App()
 }
 
 void App::run() {
-    auto model = glm::mat4(1.0f);
-
-    model = glm::scale(model, glm::vec3(5.f));
-    // model = glm::rotate(model, glm::radians(15.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     _shader->use();
-    _shader->setMat4f("u_model", model);
+    _shader->setMat4f("u_model", _modelMatrix);
 
     _shader->setInt("tex", 1);
 
@@ -138,8 +168,7 @@ void App::run() {
         _renderer->clear();
         _shader->setInt("tex", 0);
 
-        model = glm::rotate(model, glm::radians(-1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        _shader->setMat4f("u_model", model);
+        _shader->setMat4f("u_model", _modelMatrix);
 
         _renderer->renderAll();
         _framebuffer->unbind();

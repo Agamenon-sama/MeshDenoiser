@@ -21,6 +21,7 @@ public:
 
     void run();
 
+    void uiRender();
     void renderDockSpace();
 
 private:
@@ -31,6 +32,7 @@ private:
     bool _isFramebufferHovered;
 
     std::shared_ptr<Necrosis::Shader> _shader = nullptr;
+    glm::mat4 _modelMatrix = glm::mat4(1.0f);
     std::shared_ptr<Model> _model = nullptr;
     MeshProcessor _processor;
 

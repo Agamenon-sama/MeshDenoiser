@@ -16,6 +16,11 @@ struct LaplacianSmoothingResult {
     std::vector<float> vertexData;
 };
 
+struct SubdivisionResult {
+    SurfaceMesh mesh;
+    std::vector<float> vertexData;
+};
+
 class MeshProcessor {
 public:
     MeshProcessor() = default;
@@ -24,6 +29,7 @@ public:
 
     void applyNoise(Model &model, float sigma);
     void applyLaplacianSmoothing(Model &model, float lambda, int numIterations);
+    void applySubdivision(Model &model);
     void flattenMeshToGLBuffer(Model &model, SurfaceMesh &mesh);
 
     bool isProcessing(Model &model) const;
@@ -33,6 +39,7 @@ private:
     // WARNING: dangling pointer risk
     std::unordered_map<Model*, std::future<NoiseResult>> _noiseTasks;
     std::unordered_map<Model*, std::future<LaplacianSmoothingResult>> _laplacianSmoothingTasks;
+    std::unordered_map<Model*, std::future<SubdivisionResult>> _subdivisionTasks;
     std::unordered_map<Model*, std::future<std::vector<float>>> _flattenTasks;
 };
 }

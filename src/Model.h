@@ -25,6 +25,8 @@ public:
     Model& operator=(Model&&) = default;
     virtual ~Model();
 
+    std::string getName() const { return _name; }
+
     SurfaceMesh getCurrentMesh();
     void pushMesh(SurfaceMesh mesh);
     void updateGLBuffers(std::vector<float> vertices);
@@ -33,6 +35,7 @@ public:
     void render() const override;
 
 private:
+    std::string _name;
     // mesh stuff
     i8 _currentMesh;
     i8 _listSize;

@@ -19,12 +19,15 @@ using Kernel = CGAL::Simple_cartesian<double>;
 namespace PMP = CGAL::Polygon_mesh_processing;
 
 Model::Model()
-    : _currentMesh(-1), _listSize(-1), _sigma(0.001f)
+    : _name("Jane Doe"), _currentMesh(-1), _listSize(-1), _sigma(0.001f)
     , _isApplyingNoise(false), _vao(nullptr), _vbo(nullptr), _ibo(nullptr) {}
 Model::~Model() {}
 
 std::expected<std::shared_ptr<Model>, std::string> Model::loadFromFile(const std::filesystem::path &path) {
     auto model = std::make_shared<Model>();
+
+    model->_name = path.stem().string();
+
     if (!CGAL::IO::read_OBJ(path.string(), model->_meshes[0])) {
         return std::unexpected(std::format("Error reading OBJ file {}", path.string()));
     }
@@ -88,7 +91,7 @@ void Model::render() const {
 }
 
 void Model::uiRender(MeshProcessor &processor) {
-    ImGui::Begin("Model");
+    ImGui::Begin("Model Processing");
         ImGui::Text("Vertices: %d", _currentMesh >= 0 ? _meshes[_currentMesh].num_vertices() : 0);
         ImGui::Text("Faces: %d", _currentMesh >= 0 ? _meshes[_currentMesh].num_faces() : 0);
 
@@ -142,6 +145,21 @@ void Model::uiRender(MeshProcessor &processor) {
             processor.applyLaplacianSmoothing(*this, lambda, numIterations);
         }
 
+        if (isProcessing) {
+            ImGui::EndDisabled();
+            ImGui::Text("Currently processing...");
+        }
+
+        ImGui::SeparatorText("Subdivision");
+
+        if (isProcessing) {
+            ImGui::BeginDisabled();
+        }
+        if (ImGui::Button("Subdivide")) {
+            auto mesh = _meshes[_currentMesh];
+
+            processor.applySubdivision(*this);
+        }
         if (isProcessing) {
             ImGui::EndDisabled();
             ImGui::Text("Currently processing...");

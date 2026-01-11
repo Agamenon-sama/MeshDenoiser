@@ -133,15 +133,7 @@ void App::run() {
 
         _framebuffer->bind();
 
-        try {
-            _processor.update();
-        }
-        catch (const CGAL::Assertion_exception &e) {
-            slog::error("Exception thrown from the mesh processor: {}", e.what());
-            Necrosis::Window::showWarningMessageBox(
-                "A mesh processing operation failed.\nThe mesh is probably broken."
-            );
-        }
+        _processor.update();
 
         _renderer->clear();
         _shader->setInt("tex", 0);
